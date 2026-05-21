@@ -19,6 +19,11 @@ type ClaudeSettings struct {
 	DefaultMaxTokens                      map[string]int                 `json:"default_max_tokens"`
 	ThinkingAdapterEnabled                bool                           `json:"thinking_adapter_enabled"`
 	ThinkingAdapterBudgetTokensPercentage float64                        `json:"thinking_adapter_budget_tokens_percentage"`
+	// PassSamplingParams 控制是否把客户端 temperature / top_p / top_k 透传给 Claude 上游。
+	// 默认 false：所有 Claude 模型都不会发送这三个采样参数，规避新模型（含 Bedrock Anthropic）
+	// 返回 "temperature is deprecated" / "top_p is deprecated" 等 ValidationException。
+	// 设为 true 时恢复旧行为，把 textRequest 中的对应字段透传上游。
+	PassSamplingParams bool `json:"pass_sampling_params"`
 }
 
 // 默认配置
@@ -29,6 +34,7 @@ var defaultClaudeSettings = ClaudeSettings{
 		"default": 8192,
 	},
 	ThinkingAdapterBudgetTokensPercentage: 0.8,
+	PassSamplingParams:                    false,
 }
 
 // 全局实例

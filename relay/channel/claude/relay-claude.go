@@ -124,16 +124,22 @@ func RequestOpenAI2ClaudeMessage(c *gin.Context, textRequest dto.GeneralOpenAIRe
 	claudeRequest := dto.ClaudeRequest{
 		Model:         textRequest.Model,
 		StopSequences: nil,
-		Temperature:   textRequest.Temperature,
 		Tools:         claudeTools,
+	}
+	// 默认不向 Claude 上游传 temperature / top_p / top_k：
+	// 部分新模型（含 Bedrock Anthropic）已 deprecate 这三个采样参数，传了会 400。
+	// 后台 ClaudeSettings.PassSamplingParams = true 时恢复旧行为。
+	passSampling := model_setting.GetClaudeSettings().PassSamplingParams
+	if passSampling {
+		claudeRequest.Temperature = textRequest.Temperature
 	}
 	if maxTokens := textRequest.GetMaxTokens(); maxTokens > 0 {
 		claudeRequest.MaxTokens = common.GetPointer(maxTokens)
 	}
-	if textRequest.TopP != nil {
+	if passSampling && textRequest.TopP != nil {
 		claudeRequest.TopP = common.GetPointer(*textRequest.TopP)
 	}
-	if textRequest.TopK != nil {
+	if passSampling && textRequest.TopK != nil {
 		claudeRequest.TopK = common.GetPointer(*textRequest.TopK)
 	}
 	if textRequest.IsStream(nil) {

@@ -341,30 +341,6 @@ export const getMjLogsColumns = ({
       },
     },
     {
-      key: COLUMN_KEYS.CHANNEL,
-      title: t('渠道'),
-      dataIndex: 'channel_id',
-      render: (text, record, index) => {
-        return isAdminUser ? (
-          <div>
-            <Tag
-              color={colors[parseInt(text) % colors.length]}
-              shape='circle'
-              prefixIcon={<Hash size={14} />}
-              onClick={() => {
-                copyText(text);
-              }}
-            >
-              {' '}
-              {text}{' '}
-            </Tag>
-          </div>
-        ) : (
-          <></>
-        );
-      },
-    },
-    {
       key: COLUMN_KEYS.TYPE,
       title: t('类型'),
       dataIndex: 'action',

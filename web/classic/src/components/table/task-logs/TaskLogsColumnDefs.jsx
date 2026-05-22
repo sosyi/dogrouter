@@ -268,29 +268,6 @@ export const getTaskLogsColumns = ({
       },
     },
     {
-      key: COLUMN_KEYS.CHANNEL,
-      title: t('渠道'),
-      dataIndex: 'channel_id',
-      render: (text, record, index) => {
-        return isAdminUser ? (
-          <div>
-            <Tag
-              color={colors[parseInt(text) % colors.length]}
-              size='large'
-              shape='circle'
-              onClick={() => {
-                copyText(text);
-              }}
-            >
-              {text}
-            </Tag>
-          </div>
-        ) : (
-          <></>
-        );
-      },
-    },
-    {
       key: COLUMN_KEYS.USERNAME,
       title: t('用户'),
       dataIndex: 'username',

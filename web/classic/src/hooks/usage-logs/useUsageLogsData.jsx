@@ -614,24 +614,6 @@ export const useLogsData = () => {
           ),
         });
       }
-      if (isAdminUser && logs[i].type !== 6 && logs[i].type !== 1) {
-        expandDataLocal.push({
-          key: t('请求转换'),
-          value: requestConversionDisplayValue(other?.request_conversion),
-        });
-      }
-      if (isAdminUser && logs[i].type !== 6 && logs[i].type !== 1) {
-        let localCountMode = '';
-        if (other?.admin_info?.local_count_tokens) {
-          localCountMode = t('本地计费');
-        } else {
-          localCountMode = t('上游返回');
-        }
-        expandDataLocal.push({
-          key: t('计费模式'),
-          value: localCountMode,
-        });
-      }
       if (isAdminUser && logs[i].type === 1) {
         const adminInfo = other?.admin_info;
         if (adminInfo) {

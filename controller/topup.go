@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,25 +26,41 @@ func GetTopUpInfo(c *gin.Context) {
 	// 获取支付方式
 	payMethods := operation_setting.PayMethods
 
-	// 如果启用了 Stripe 支付，添加到支付方法列表
+	// 如果启用了 Stripe 支付，注入 微信/支付宝/银行卡 三条 pay_methods
+	// 这样前端「选择支付方式」直接平铺三颗 Stripe-backed 按钮，每条对应
+	// 一种 Stripe payment_method_types。如果管理员已经手动配置了任何
+	// stripe / stripe_* 条目，则跳过自动注入，尊重管理员配置。
 	if isStripeTopUpEnabled() {
-		// 检查是否已经包含 Stripe
-		hasStripe := false
+		hasManualStripe := false
 		for _, method := range payMethods {
-			if method["type"] == "stripe" {
-				hasStripe = true
+			if t := method["type"]; t == "stripe" || strings.HasPrefix(t, "stripe_") {
+				hasManualStripe = true
 				break
 			}
 		}
 
-		if !hasStripe {
-			stripeMethod := map[string]string{
-				"name":      "Stripe",
-				"type":      "stripe",
-				"color":     "rgba(var(--semi-purple-5), 1)",
-				"min_topup": strconv.Itoa(setting.StripeMinTopUp),
-			}
-			payMethods = append(payMethods, stripeMethod)
+		if !hasManualStripe {
+			stripeMin := strconv.Itoa(setting.StripeMinTopUp)
+			payMethods = append(payMethods,
+				map[string]string{
+					"name":      "支付宝 (Stripe)",
+					"type":      model.PaymentMethodStripeAlipay,
+					"color":     "rgba(var(--semi-blue-5), 1)",
+					"min_topup": stripeMin,
+				},
+				map[string]string{
+					"name":      "微信支付 (Stripe)",
+					"type":      model.PaymentMethodStripeWechat,
+					"color":     "rgba(var(--semi-green-5), 1)",
+					"min_topup": stripeMin,
+				},
+				map[string]string{
+					"name":      "银行卡 (Stripe)",
+					"type":      model.PaymentMethodStripeCard,
+					"color":     "rgba(var(--semi-purple-5), 1)",
+					"min_topup": stripeMin,
+				},
+			)
 		}
 	}
 

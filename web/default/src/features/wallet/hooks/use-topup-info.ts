@@ -71,7 +71,8 @@ function parsePaymentMethods(
         type,
         color: typeof item.color === 'string' ? item.color : undefined,
         min_topup:
-          type === 'stripe' && normalizedMinTopup <= 0
+          (type === 'stripe' || type.startsWith('stripe_')) &&
+          normalizedMinTopup <= 0
             ? stripeMinTopup
             : normalizedMinTopup,
       }

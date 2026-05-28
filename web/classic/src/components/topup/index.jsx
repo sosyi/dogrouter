@@ -132,8 +132,12 @@ const TopUp = () => {
       : minTopUp;
   };
 
+  const isStripePayment = (payment) =>
+    payment === 'stripe' ||
+    (typeof payment === 'string' && payment.startsWith('stripe_'));
+
   const requestAmountByPayment = async (payment, value) => {
-    if (payment === 'stripe') {
+    if (isStripePayment(payment)) {
       return getStripeAmount(value);
     }
     if (payment === 'waffo_pancake') {
@@ -190,7 +194,7 @@ const TopUp = () => {
   };
 
   const preTopUp = async (payment) => {
-    if (payment === 'stripe') {
+    if (isStripePayment(payment)) {
       if (!enableStripeTopUp) {
         showError(t('管理员未开启Stripe充值！'));
         return;
@@ -254,7 +258,7 @@ const TopUp = () => {
       return;
     }
 
-    if (payWay === 'stripe') {
+    if (isStripePayment(payWay)) {
       // Stripe 支付处理
       if (amount === 0) {
         await getStripeAmount();
@@ -273,11 +277,11 @@ const TopUp = () => {
     setConfirmLoading(true);
     try {
       let res;
-      if (payWay === 'stripe') {
-        // Stripe 支付请求
+      if (isStripePayment(payWay)) {
+        // Stripe 支付请求 — 透传具体子类型 (stripe / stripe_alipay / stripe_wxpay / stripe_card)
         res = await API.post('/api/user/stripe/pay', {
           amount: parseInt(topUpCount),
-          payment_method: 'stripe',
+          payment_method: payWay,
         });
       } else {
         // 普通支付请求
@@ -290,7 +294,7 @@ const TopUp = () => {
       if (res !== undefined) {
         const { message, data } = res.data;
         if (message === 'success') {
-          if (payWay === 'stripe') {
+          if (isStripePayment(payWay)) {
             // Stripe 支付回调处理
             window.open(data.pay_link, '_blank');
           } else {
@@ -599,9 +603,11 @@ const TopUp = () => {
                 ? normalizedMinTopup
                 : 0;
 
-              // Stripe 的最小充值从后端字段回填
+              // Stripe 的最小充值从后端字段回填（含 stripe_alipay/wxpay/card 子类型）
               if (
-                method.type === 'stripe' &&
+                (method.type === 'stripe' ||
+                  (typeof method.type === 'string' &&
+                    method.type.startsWith('stripe_'))) &&
                 (!method.min_topup || method.min_topup <= 0)
               ) {
                 const stripeMin = Number(data.stripe_min_topup);
@@ -611,11 +617,17 @@ const TopUp = () => {
               }
 
               if (!method.color) {
-                if (method.type === 'alipay') {
+                if (method.type === 'alipay' || method.type === 'stripe_alipay') {
                   method.color = 'rgba(var(--semi-blue-5), 1)';
-                } else if (method.type === 'wxpay') {
+                } else if (
+                  method.type === 'wxpay' ||
+                  method.type === 'stripe_wxpay'
+                ) {
                   method.color = 'rgba(var(--semi-green-5), 1)';
-                } else if (method.type === 'stripe') {
+                } else if (
+                  method.type === 'stripe' ||
+                  method.type === 'stripe_card'
+                ) {
                   method.color = 'rgba(var(--semi-purple-5), 1)';
                 } else {
                   method.color = 'rgba(var(--semi-primary-5), 1)';

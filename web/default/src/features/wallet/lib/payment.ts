@@ -69,10 +69,12 @@ export function submitPaymentForm(
 }
 
 /**
- * Check if payment method is Stripe
+ * Check if payment method is Stripe (including stripe_alipay, stripe_wxpay, stripe_card)
  */
 export function isStripePayment(paymentType: string): boolean {
-  return paymentType === PAYMENT_TYPES.STRIPE
+  return (
+    paymentType === PAYMENT_TYPES.STRIPE || paymentType.startsWith('stripe_')
+  )
 }
 
 /**

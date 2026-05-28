@@ -61,8 +61,30 @@ func (*StripeAdaptor) RequestAmount(c *gin.Context, req *StripePayRequest) {
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": strconv.FormatFloat(payMoney, 'f', 2, 64)})
 }
 
+// stripeMethodTypeFor maps a payment_method string from the topup request
+// to Stripe Checkout payment_method_types and signals whether the WeChat Pay
+// "client=web" option must be set.
+//
+// "stripe" (legacy) returns nil types so Stripe Checkout falls back to the
+// dashboard-configured payment method list.
+func stripeMethodTypeFor(paymentMethod string) (types []string, isWechat bool, ok bool) {
+	switch paymentMethod {
+	case model.PaymentMethodStripe:
+		return nil, false, true
+	case model.PaymentMethodStripeAlipay:
+		return []string{"alipay"}, false, true
+	case model.PaymentMethodStripeWechat:
+		return []string{"wechat_pay"}, true, true
+	case model.PaymentMethodStripeCard:
+		return []string{"card"}, false, true
+	default:
+		return nil, false, false
+	}
+}
+
 func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
-	if req.PaymentMethod != model.PaymentMethodStripe {
+	methodTypes, isWechat, ok := stripeMethodTypeFor(req.PaymentMethod)
+	if !ok {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "不支持的支付渠道"})
 		return
 	}
@@ -92,7 +114,7 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 	reference := fmt.Sprintf("new-api-ref-%d-%d-%s", user.Id, time.Now().UnixMilli(), randstr.String(4))
 	referenceId := "ref_" + common.Sha1([]byte(reference))
 
-	payLink, err := genStripeLink(referenceId, user.StripeCustomer, user.Email, req.Amount, req.SuccessURL, req.CancelURL)
+	payLink, err := genStripeLink(referenceId, user.StripeCustomer, user.Email, req.Amount, req.SuccessURL, req.CancelURL, methodTypes, isWechat)
 	if err != nil {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Stripe 创建 Checkout Session 失败 user_id=%d trade_no=%s amount=%d error=%q", id, referenceId, req.Amount, err.Error()))
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "拉起支付失败"})
@@ -104,7 +126,7 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 		Amount:          req.Amount,
 		Money:           chargedMoney,
 		TradeNo:         referenceId,
-		PaymentMethod:   model.PaymentMethodStripe,
+		PaymentMethod:   req.PaymentMethod,
 		PaymentProvider: model.PaymentProviderStripe,
 		CreateTime:      time.Now().Unix(),
 		Status:          common.TopUpStatusPending,
@@ -336,9 +358,14 @@ func sessionExpired(ctx context.Context, event stripe.Event) {
 //   - amount: quantity of units to purchase
 //   - successURL: custom URL to redirect after successful payment (empty for default)
 //   - cancelURL: custom URL to redirect when payment is canceled (empty for default)
+//   - paymentMethodTypes: when non-empty, restrict Checkout to these Stripe
+//     payment method types (e.g. ["alipay"], ["wechat_pay"], ["card"]). When
+//     empty, Stripe falls back to the dashboard-configured method list.
+//   - includeWechatWebOption: when true, set wechat_pay client="web" so the
+//     Checkout page can render the WeChat Pay QR code.
 //
 // Returns the checkout session URL or an error if the session creation fails.
-func genStripeLink(referenceId string, customerId string, email string, amount int64, successURL string, cancelURL string) (string, error) {
+func genStripeLink(referenceId string, customerId string, email string, amount int64, successURL string, cancelURL string, paymentMethodTypes []string, includeWechatWebOption bool) (string, error) {
 	if !strings.HasPrefix(setting.StripeApiSecret, "sk_") && !strings.HasPrefix(setting.StripeApiSecret, "rk_") {
 		return "", fmt.Errorf("无效的Stripe API密钥")
 	}
@@ -365,6 +392,17 @@ func genStripeLink(referenceId string, customerId string, email string, amount i
 		},
 		Mode:                stripe.String(string(stripe.CheckoutSessionModePayment)),
 		AllowPromotionCodes: stripe.Bool(setting.StripePromotionCodesEnabled),
+	}
+
+	if len(paymentMethodTypes) > 0 {
+		params.PaymentMethodTypes = stripe.StringSlice(paymentMethodTypes)
+	}
+	if includeWechatWebOption {
+		params.PaymentMethodOptions = &stripe.CheckoutSessionPaymentMethodOptionsParams{
+			WeChatPay: &stripe.CheckoutSessionPaymentMethodOptionsWeChatPayParams{
+				Client: stripe.String("web"),
+			},
+		}
 	}
 
 	if "" == customerId {

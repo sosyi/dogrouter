@@ -87,7 +87,7 @@ export function usePayment() {
         const response = isStripe
           ? await requestStripePayment({
               amount,
-              payment_method: 'stripe',
+              payment_method: paymentType,
             })
           : await requestPayment({
               amount,

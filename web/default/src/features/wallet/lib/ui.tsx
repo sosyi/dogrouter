@@ -106,6 +106,27 @@ export function getPaymentIcon(
           style={{ color: PAYMENT_ICON_COLORS[PAYMENT_TYPES.STRIPE] }}
         />
       )
+    case PAYMENT_TYPES.STRIPE_ALIPAY:
+      return (
+        <SiAlipay
+          className={className}
+          style={{ color: PAYMENT_ICON_COLORS[PAYMENT_TYPES.STRIPE_ALIPAY] }}
+        />
+      )
+    case PAYMENT_TYPES.STRIPE_WECHAT:
+      return (
+        <SiWechat
+          className={className}
+          style={{ color: PAYMENT_ICON_COLORS[PAYMENT_TYPES.STRIPE_WECHAT] }}
+        />
+      )
+    case PAYMENT_TYPES.STRIPE_CARD:
+      return (
+        <CreditCard
+          className={className}
+          style={{ color: PAYMENT_ICON_COLORS[PAYMENT_TYPES.STRIPE_CARD] }}
+        />
+      )
     case PAYMENT_TYPES.CREEM:
       return (
         <Landmark

@@ -370,43 +370,101 @@ const RechargeCard = ({
                 <>
                   <Row>
                     <Col span={24}>
-                      <Form.InputNumber
-                        field='topUpCount'
-                        label={t('充值数量')}
-                        disabled={
-                          !enableOnlineTopUp &&
-                          !enableStripeTopUp &&
-                          !enableWaffoTopUp &&
-                          !enableWaffoPancakeTopUp
-                        }
-                        placeholder={
-                          t('充值数量，最低 ') + renderQuotaWithAmount(minTopUp)
-                        }
-                        value={topUpCount}
-                        min={minTopUp}
-                        max={999999999}
-                        step={1}
-                        precision={0}
-                        onChange={async (value) => {
-                          if (value && value >= 1) {
-                            setTopUpCount(value);
-                            setSelectedPreset(null);
-                            await getAmount(value);
+                      {(() => {
+                        const currentDiscount = Number(
+                          topupInfo?.discount?.[topUpCount] ?? 1,
+                        );
+                        const hasCurrentDiscount =
+                          Number.isFinite(currentDiscount) &&
+                          currentDiscount > 0 &&
+                          currentDiscount < 1;
+                        const {
+                          symbol: curSymbol,
+                          rate: curRate,
+                          type: curType,
+                        } = getCurrencyConfig();
+                        let curUsdRate = 7;
+                        try {
+                          const statusStr = localStorage.getItem('status');
+                          if (statusStr) {
+                            const s = JSON.parse(statusStr);
+                            curUsdRate = s?.usd_exchange_rate || 7;
                           }
-                        }}
-                        onBlur={(e) => {
-                          const value = parseInt(e.target.value);
-                          if (!value || value < 1) {
-                            setTopUpCount(1);
-                            getAmount(1);
-                          }
-                        }}
-                        formatter={(value) => (value ? `${value}` : '')}
-                        parser={(value) =>
-                          value ? parseInt(value.replace(/[^\d]/g, '')) : 0
+                        } catch (e) {}
+                        // priceRatio is configured in CNY per quota unit.
+                        // Compute discounted total then convert to user's display currency.
+                        const cnyActualPay =
+                          Number(topUpCount || 0) *
+                          Number(priceRatio || 1) *
+                          currentDiscount;
+                        let displayPay = cnyActualPay;
+                        if (curType === 'USD') {
+                          displayPay = cnyActualPay / curUsdRate;
+                        } else if (curType === 'CUSTOM') {
+                          displayPay = (cnyActualPay / curUsdRate) * curRate;
                         }
-                        style={{ width: '100%' }}
-                      />
+                        const percentOff = (
+                          (1 - currentDiscount) *
+                          100
+                        ).toFixed(0);
+                        const tenthDigit = (currentDiscount * 10).toFixed(1);
+                        const discountLabel = t('折').includes('off')
+                          ? `${percentOff}% off`
+                          : `${tenthDigit}${t('折')}`;
+                        return (
+                          <Form.InputNumber
+                            field='topUpCount'
+                            label={t('充值数量')}
+                            disabled={
+                              !enableOnlineTopUp &&
+                              !enableStripeTopUp &&
+                              !enableWaffoTopUp &&
+                              !enableWaffoPancakeTopUp
+                            }
+                            placeholder={
+                              t('充值数量，最低 ') +
+                              renderQuotaWithAmount(minTopUp)
+                            }
+                            value={topUpCount}
+                            min={minTopUp}
+                            max={999999999}
+                            step={1}
+                            precision={0}
+                            onChange={async (value) => {
+                              if (value && value >= 1) {
+                                setTopUpCount(value);
+                                setSelectedPreset(null);
+                                await getAmount(value);
+                              }
+                            }}
+                            onBlur={(e) => {
+                              const value = parseInt(e.target.value);
+                              if (!value || value < 1) {
+                                setTopUpCount(1);
+                                getAmount(1);
+                              }
+                            }}
+                            formatter={(value) => (value ? `${value}` : '')}
+                            parser={(value) =>
+                              value
+                                ? parseInt(value.replace(/[^\d]/g, ''))
+                                : 0
+                            }
+                            extraText={
+                              hasCurrentDiscount ? (
+                                <Text
+                                  type='secondary'
+                                  className='text-red-600'
+                                >
+                                  {t('实付')} {curSymbol}
+                                  {displayPay.toFixed(2)} ({discountLabel})
+                                </Text>
+                              ) : undefined
+                            }
+                            style={{ width: '100%' }}
+                          />
+                        );
+                      })()}
                     </Col>
                   </Row>
                   {regularPayMethods.length > 0 && (
@@ -485,7 +543,7 @@ const RechargeCard = ({
                                   className='!rounded-lg !px-4 !py-2 !w-full !justify-center'
                                   block
                                 >
-                                  {payMethod.name}
+                                  {t(payMethod.name)}
                                 </Button>
                               );
 

@@ -19,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/checkout/session"
+	"github.com/stripe/stripe-go/v81/coupon"
 	"github.com/stripe/stripe-go/v81/webhook"
 	"github.com/thanhpk/randstr"
 )
@@ -111,10 +112,18 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 	user, _ := model.GetUserById(id, false)
 	chargedMoney := GetChargedAmount(float64(req.Amount), *user)
 
+	// 平台 AmountDiscount 配置（key 是充值数量，value 是折扣率，例如 0.95 = 95 折）。
+	// Stripe Checkout 默认按 Price.unit_amount × Quantity 收款，无法感知平台折扣，
+	// 所以需要把折扣转成 Stripe Coupon 注入 session 才能让用户实际按折后价付款。
+	discount := 1.0
+	if ds, ok := operation_setting.GetPaymentSetting().AmountDiscount[int(req.Amount)]; ok && ds > 0 && ds < 1.0 {
+		discount = ds
+	}
+
 	reference := fmt.Sprintf("new-api-ref-%d-%d-%s", user.Id, time.Now().UnixMilli(), randstr.String(4))
 	referenceId := "ref_" + common.Sha1([]byte(reference))
 
-	payLink, err := genStripeLink(referenceId, user.StripeCustomer, user.Email, req.Amount, req.SuccessURL, req.CancelURL, methodTypes, isWechat)
+	payLink, err := genStripeLink(c.Request.Context(), referenceId, user.StripeCustomer, user.Email, req.Amount, req.SuccessURL, req.CancelURL, methodTypes, isWechat, discount)
 	if err != nil {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Stripe 创建 Checkout Session 失败 user_id=%d trade_no=%s amount=%d error=%q", id, referenceId, req.Amount, err.Error()))
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "拉起支付失败"})
@@ -352,6 +361,7 @@ func sessionExpired(ctx context.Context, event stripe.Event) {
 // It creates a new checkout session with the specified parameters and returns the payment URL.
 //
 // Parameters:
+//   - ctx: request context, used for logging coupon-creation failures.
 //   - referenceId: unique reference identifier for the transaction
 //   - customerId: existing Stripe customer ID (empty string if new customer)
 //   - email: customer email address for new customer creation
@@ -363,9 +373,15 @@ func sessionExpired(ctx context.Context, event stripe.Event) {
 //     empty, Stripe falls back to the dashboard-configured method list.
 //   - includeWechatWebOption: when true, set wechat_pay client="web" so the
 //     Checkout page can render the WeChat Pay QR code.
+//   - discount: platform discount rate in (0, 1]. When < 1.0, a one-time Stripe
+//     Coupon (percent_off) is created and attached via Discounts so Stripe
+//     actually charges the discounted total. Coupon-creation failures are
+//     logged and the session falls back to full price (safer than blocking).
+//     When discount is applied, AllowPromotionCodes is force-disabled because
+//     Stripe rejects sessions that combine Discounts with promotion codes.
 //
 // Returns the checkout session URL or an error if the session creation fails.
-func genStripeLink(referenceId string, customerId string, email string, amount int64, successURL string, cancelURL string, paymentMethodTypes []string, includeWechatWebOption bool) (string, error) {
+func genStripeLink(ctx context.Context, referenceId string, customerId string, email string, amount int64, successURL string, cancelURL string, paymentMethodTypes []string, includeWechatWebOption bool, discount float64) (string, error) {
 	if !strings.HasPrefix(setting.StripeApiSecret, "sk_") && !strings.HasPrefix(setting.StripeApiSecret, "rk_") {
 		return "", fmt.Errorf("无效的Stripe API密钥")
 	}
@@ -392,6 +408,27 @@ func genStripeLink(referenceId string, customerId string, email string, amount i
 		},
 		Mode:                stripe.String(string(stripe.CheckoutSessionModePayment)),
 		AllowPromotionCodes: stripe.Bool(setting.StripePromotionCodesEnabled),
+	}
+
+	// 平台预设折扣 → Stripe Coupon。仅在 discount ∈ (0, 1) 时创建 coupon，
+	// 创建失败时回退到全价（不阻塞支付）。Stripe 不允许 Discounts 与
+	// AllowPromotionCodes 同时启用，所以应用 coupon 时强制关掉 promotion codes。
+	if discount > 0 && discount < 1.0 {
+		percentOff := (1.0 - discount) * 100
+		cpn, cpnErr := coupon.New(&stripe.CouponParams{
+			PercentOff: stripe.Float64(percentOff),
+			Duration:   stripe.String(string(stripe.CouponDurationOnce)),
+			Name:       stripe.String(fmt.Sprintf("router topup discount %.2f%%", percentOff)),
+		})
+		if cpnErr != nil {
+			logger.LogError(ctx, fmt.Sprintf("Stripe 创建 Coupon 失败，回退全价 trade_no=%s discount=%.4f error=%q", referenceId, discount, cpnErr.Error()))
+		} else {
+			params.Discounts = []*stripe.CheckoutSessionDiscountParams{
+				{Coupon: stripe.String(cpn.ID)},
+			}
+			params.AllowPromotionCodes = nil
+			logger.LogInfo(ctx, fmt.Sprintf("Stripe 应用平台折扣 trade_no=%s discount=%.4f percent_off=%.2f coupon_id=%s", referenceId, discount, percentOff, cpn.ID))
+		}
 	}
 
 	if len(paymentMethodTypes) > 0 {

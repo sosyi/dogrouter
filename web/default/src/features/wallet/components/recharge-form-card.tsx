@@ -311,6 +311,14 @@ export function RechargeFormCard({
                     {topupInfo?.pay_methods?.map((method) => {
                       const minTopup = method.min_topup || 0
                       const disabled = minTopup > topupAmount
+                      const displayName =
+                        method.type === 'stripe_alipay'
+                          ? t('Alipay (Stripe)')
+                          : method.type === 'stripe_wxpay'
+                            ? t('WeChat Pay (Stripe)')
+                            : method.type === 'stripe_card'
+                              ? t('Card (Stripe)')
+                              : method.name
 
                       const button = (
                         <Button
@@ -330,7 +338,7 @@ export function RechargeFormCard({
                               method.name
                             )
                           )}
-                          <span className='truncate'>{method.name}</span>
+                          <span className='truncate'>{displayName}</span>
                         </Button>
                       )
 

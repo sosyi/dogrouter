@@ -32,6 +32,9 @@ const (
 	PaymentMethodCreem        = "creem"
 	PaymentMethodWaffo        = "waffo"
 	PaymentMethodWaffoPancake = "waffo_pancake"
+	PaymentMethodBishengTRC20 = "bisheng_trc20_usdt"
+	PaymentMethodBishengBEP20 = "bisheng_bep20_usdt"
+	PaymentMethodBishengERC20 = "bisheng_erc20_usdt"
 )
 
 const (
@@ -40,6 +43,7 @@ const (
 	PaymentProviderCreem        = "creem"
 	PaymentProviderWaffo        = "waffo"
 	PaymentProviderWaffoPancake = "waffo_pancake"
+	PaymentProviderBisheng      = "bisheng"
 )
 
 var (

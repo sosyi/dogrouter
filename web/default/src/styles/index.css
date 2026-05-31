@@ -32,6 +32,34 @@ For commercial licensing, please contact support@quantumnous.com
     font-weight: var(--shiki-dark-font-weight) !important;
     text-decoration: var(--shiki-dark-text-decoration) !important;
   }
+
+  .about-contact-wrap {
+    color: var(--foreground);
+  }
+
+  .about-contact-wrap a {
+    color: var(--primary) !important;
+  }
+
+  .dark .about-contact-wrap,
+  .dark .about-contact-wrap * {
+    color: var(--muted-foreground) !important;
+  }
+
+  .dark .about-contact-wrap h1,
+  .dark .about-contact-wrap [data-i18n='Contact Us'] {
+    color: var(--foreground) !important;
+  }
+
+  .dark .about-contact-wrap a {
+    color: var(--primary) !important;
+  }
+
+  .dark .about-contact-wrap [style*='background: #fff'],
+  .dark .about-contact-wrap [style*='background:#fff'] {
+    background: var(--card) !important;
+    border-color: var(--border) !important;
+  }
 }
 
 @layer base {

@@ -54,6 +54,19 @@ export type WaffoPancakePaymentResponse = ApiResponse<
     }
   | string
 >
+export interface BishengPaymentData {
+  trade_no: string
+  order_no?: string
+  coin_type: string
+  amount: string
+  address: string
+  expire_time?: string
+  client_expire_time?: string
+  payment_method: string
+  payment_provider: string
+  payment_hint?: string
+}
+export type BishengPaymentResponse = ApiResponse<BishengPaymentData | string>
 
 /**
  * Creem product configuration
@@ -145,6 +158,10 @@ export interface TopupInfo {
   enable_waffo_pancake_topup?: boolean
   /** Minimum topup amount for Waffo Pancake */
   waffo_pancake_min_topup?: number
+  /** Whether Bisheng USDT topup is enabled */
+  enable_bisheng_topup?: boolean
+  /** Minimum topup amount for Bisheng USDT */
+  bisheng_min_topup?: number
 }
 
 /**

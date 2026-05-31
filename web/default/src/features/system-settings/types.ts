@@ -225,6 +225,11 @@ export type BillingSettings = {
   CreemWebhookSecret: string
   CreemTestMode: boolean
   CreemProducts: string
+  BishengEnabled: boolean
+  BishengGateway: string
+  BishengMerchant: string
+  BishengMd5Key: string
+  BishengMinTopUp: number
   WaffoEnabled: boolean
   WaffoApiKey: string
   WaffoPrivateKey: string

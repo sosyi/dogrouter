@@ -20,27 +20,93 @@ For commercial licensing, please contact support@quantumnous.com
 import React, { useEffect, useState } from 'react';
 import { API, showError } from '../../helpers';
 import { marked } from 'marked';
-import { Empty } from '@douyinfe/semi-ui';
-import {
-  IllustrationConstruction,
-  IllustrationConstructionDark,
-} from '@douyinfe/semi-illustrations';
 import { useTranslation } from 'react-i18next';
+import { IconPhone, IconSend } from '@douyinfe/semi-icons';
+
+const ContactAbout = ({ t }) => (
+  <div className='flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-10'>
+    <section className='w-full max-w-xl rounded-xl border border-semi-color-border bg-semi-color-bg-1 px-6 py-8 text-center shadow-sm sm:px-10'>
+      <div className='space-y-2'>
+        <p className='text-sm font-medium text-semi-color-text-2'>
+          {t('Customer Support')}
+        </p>
+        <h1 className='text-2xl sm:text-3xl font-semibold'>
+          {t('Contact Us')}
+        </h1>
+        <p className='text-sm text-semi-color-text-2'>
+          {t('Reach us through the following channels.')}
+        </p>
+      </div>
+
+      <div className='mt-8 grid gap-3 text-left'>
+        <div className='flex items-center gap-3 rounded-lg border border-semi-color-border bg-semi-color-bg-0 px-4 py-3'>
+          <IconPhone className='text-semi-color-primary' size='large' />
+          <div>
+            <div className='text-xs text-semi-color-text-2'>WhatsApp</div>
+            <a
+              href='https://wa.me/xxxx'
+              target='_blank'
+              rel='noopener noreferrer'
+              className='!text-semi-color-primary font-medium'
+            >
+              xxxx
+            </a>
+          </div>
+        </div>
+        <div className='flex items-center gap-3 rounded-lg border border-semi-color-border bg-semi-color-bg-0 px-4 py-3'>
+          <IconSend className='text-semi-color-primary' size='large' />
+          <div>
+            <div className='text-xs text-semi-color-text-2'>Telegram</div>
+            <a
+              href='https://t.me/XXX'
+              target='_blank'
+              rel='noopener noreferrer'
+              className='!text-semi-color-primary font-medium'
+            >
+              XXX
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+);
+
+const normalizeAboutContent = (value) => {
+  const trimmed = String(value || '').trim();
+  const fenced = trimmed.match(/^```(?:html)?\s*([\s\S]*?)\s*```$/i);
+  return (fenced?.[1] || trimmed).trim();
+};
+
+const isLikelyHtml = (value) => /<\/?[a-z][\s\S]*>/i.test(value);
+
+const translateAboutHtmlContent = (value, t) =>
+  value.replace(
+    /(<[^>]*\sdata-i18n=(["'])(.*?)\2[^>]*>)([\s\S]*?)(<\/[^>]+>)/g,
+    (_match, openTag, _quote, key, _content, closeTag) =>
+      `${openTag}${t(key)}${closeTag}`,
+  );
 
 const About = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [about, setAbout] = useState('');
   const [aboutLoaded, setAboutLoaded] = useState(false);
-  const currentYear = new Date().getFullYear();
 
   const displayAbout = async () => {
     setAbout(localStorage.getItem('about') || '');
     const res = await API.get('/api/about');
     const { success, message, data } = res.data;
     if (success) {
-      let aboutContent = data;
-      if (!data.startsWith('https://')) {
-        aboutContent = marked.parse(data);
+      const normalizedData = translateAboutHtmlContent(
+        normalizeAboutContent(data),
+        t,
+      );
+      let aboutContent = normalizedData;
+      if (
+        !normalizedData.startsWith('https://') &&
+        !isLikelyHtml(normalizedData)
+      ) {
+        aboutContent = marked.parse(normalizedData);
       }
       setAbout(aboutContent);
       localStorage.setItem('about', aboutContent);
@@ -53,104 +119,12 @@ const About = () => {
 
   useEffect(() => {
     displayAbout().then();
-  }, []);
-
-  const emptyStyle = {
-    padding: '24px',
-  };
-
-  const customDescription = (
-    <div style={{ textAlign: 'center' }}>
-      <p>{t('可在设置页面设置关于内容，支持 HTML & Markdown')}</p>
-      {t('New API项目仓库地址：')}
-      <a
-        href='https://github.com/QuantumNous/new-api'
-        target='_blank'
-        rel='noopener noreferrer'
-        className='!text-semi-color-primary'
-      >
-        https://github.com/QuantumNous/new-api
-      </a>
-      <p>
-        <a
-          href='https://github.com/QuantumNous/new-api'
-          target='_blank'
-          rel='noopener noreferrer'
-          className='!text-semi-color-primary'
-        >
-          NewAPI
-        </a>{' '}
-        {t('© {{currentYear}}', { currentYear })}{' '}
-        <a
-          href='https://github.com/QuantumNous'
-          target='_blank'
-          rel='noopener noreferrer'
-          className='!text-semi-color-primary'
-        >
-          QuantumNous
-        </a>{' '}
-        {t('| 基于')}{' '}
-        <a
-          href='https://github.com/songquanpeng/one-api/releases/tag/v0.5.4'
-          target='_blank'
-          rel='noopener noreferrer'
-          className='!text-semi-color-primary'
-        >
-          One API v0.5.4
-        </a>{' '}
-        © 2023{' '}
-        <a
-          href='https://github.com/songquanpeng'
-          target='_blank'
-          rel='noopener noreferrer'
-          className='!text-semi-color-primary'
-        >
-          JustSong
-        </a>
-      </p>
-      <p>
-        {t('本项目根据')}
-        <a
-          href='https://github.com/songquanpeng/one-api/blob/v0.5.4/LICENSE'
-          target='_blank'
-          rel='noopener noreferrer'
-          className='!text-semi-color-primary'
-        >
-          {t('MIT许可证')}
-        </a>
-        {t('授权，需在遵守')}
-        <a
-          href='https://www.gnu.org/licenses/agpl-3.0.html'
-          target='_blank'
-          rel='noopener noreferrer'
-          className='!text-semi-color-primary'
-        >
-          {t('AGPL v3.0协议')}
-        </a>
-        {t('的前提下使用。')}
-      </p>
-    </div>
-  );
+  }, [i18n.language]);
 
   return (
     <div className='mt-[60px] px-2'>
       {aboutLoaded && about === '' ? (
-        <div className='flex justify-center items-center h-screen p-8'>
-          <Empty
-            image={
-              <IllustrationConstruction style={{ width: 150, height: 150 }} />
-            }
-            darkModeImage={
-              <IllustrationConstructionDark
-                style={{ width: 150, height: 150 }}
-              />
-            }
-            description={t('管理员暂时未设置任何关于内容')}
-            style={emptyStyle}
-          >
-            {customDescription}
-          </Empty>
-        </div>
+        <ContactAbout t={t} />
       ) : (
         <>
           {about.startsWith('https://') ? (

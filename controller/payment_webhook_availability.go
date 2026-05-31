@@ -85,6 +85,17 @@ func isWaffoPancakeWebhookEnabled() bool {
 	return isWaffoPancakeTopUpEnabled()
 }
 
+func isBishengTopUpEnabled() bool {
+	return setting.BishengEnabled &&
+		strings.TrimSpace(setting.BishengGateway) != "" &&
+		strings.TrimSpace(setting.BishengMerchant) != "" &&
+		strings.TrimSpace(setting.BishengMd5Key) != ""
+}
+
+func isBishengWebhookEnabled() bool {
+	return isBishengTopUpEnabled()
+}
+
 func isEpayTopUpEnabled() bool {
 	return isEpayWebhookConfigured() && len(operation_setting.PayMethods) > 0
 }

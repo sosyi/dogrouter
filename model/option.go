@@ -118,6 +118,11 @@ func InitOptionMap() {
 	common.OptionMap["WaffoPancakeCurrency"] = setting.WaffoPancakeCurrency
 	common.OptionMap["WaffoPancakeUnitPrice"] = strconv.FormatFloat(setting.WaffoPancakeUnitPrice, 'f', -1, 64)
 	common.OptionMap["WaffoPancakeMinTopUp"] = strconv.Itoa(setting.WaffoPancakeMinTopUp)
+	common.OptionMap["BishengEnabled"] = strconv.FormatBool(setting.BishengEnabled)
+	common.OptionMap["BishengGateway"] = setting.BishengGateway
+	common.OptionMap["BishengMerchant"] = setting.BishengMerchant
+	common.OptionMap["BishengMd5Key"] = setting.BishengMd5Key
+	common.OptionMap["BishengMinTopUp"] = strconv.Itoa(setting.BishengMinTopUp)
 	common.OptionMap["TopupGroupRatio"] = common.TopupGroupRatio2JSONString()
 	common.OptionMap["Chats"] = setting.Chats2JsonString()
 	common.OptionMap["AutoGroups"] = setting.AutoGroups2JsonString()
@@ -443,6 +448,16 @@ func updateOptionMap(key string, value string) (err error) {
 		setting.WaffoPancakeUnitPrice, _ = strconv.ParseFloat(value, 64)
 	case "WaffoPancakeMinTopUp":
 		setting.WaffoPancakeMinTopUp, _ = strconv.Atoi(value)
+	case "BishengEnabled":
+		setting.BishengEnabled = value == "true"
+	case "BishengGateway":
+		setting.BishengGateway = value
+	case "BishengMerchant":
+		setting.BishengMerchant = value
+	case "BishengMd5Key":
+		setting.BishengMd5Key = value
+	case "BishengMinTopUp":
+		setting.BishengMinTopUp, _ = strconv.Atoi(value)
 	case "TopupGroupRatio":
 		err = common.UpdateTopupGroupRatioByJSONString(value)
 	case "GitHubClientId":

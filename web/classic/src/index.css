@@ -31,6 +31,34 @@ body {
   background-color: var(--semi-color-bg-0);
 }
 
+.about-contact-wrap {
+  color: var(--semi-color-text-0);
+}
+
+.about-contact-wrap a {
+  color: var(--semi-color-primary) !important;
+}
+
+html.dark .about-contact-wrap,
+html.dark .about-contact-wrap * {
+  color: var(--semi-color-text-2) !important;
+}
+
+html.dark .about-contact-wrap h1,
+html.dark .about-contact-wrap [data-i18n='Contact Us'] {
+  color: var(--semi-color-text-0) !important;
+}
+
+html.dark .about-contact-wrap a {
+  color: var(--semi-color-primary) !important;
+}
+
+html.dark .about-contact-wrap [style*='background: #fff'],
+html.dark .about-contact-wrap [style*='background:#fff'] {
+  background: var(--semi-color-bg-1) !important;
+  border-color: var(--semi-color-border) !important;
+}
+
 /* 桌面端禁止 body 纵向滚动 - 防止 VChart tooltip 触发页面滚动条 */
 @media (min-width: 768px) {
   body {

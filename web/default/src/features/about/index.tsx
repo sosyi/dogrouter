@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
-import { Construction } from 'lucide-react'
+import { MessageCircle, Send } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Markdown } from '@/components/ui/markdown'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -37,87 +37,73 @@ function isLikelyHtml(value: string) {
   return /<\/?[a-z][\s\S]*>/i.test(value)
 }
 
-function EmptyAboutState() {
+function normalizeAboutContent(value: string) {
+  const trimmed = value.trim()
+  const fenced = trimmed.match(/^```(?:html)?\s*([\s\S]*?)\s*```$/i)
+
+  return (fenced?.[1] ?? trimmed).trim()
+}
+
+function translateAboutHtmlContent(
+  value: string,
+  translate: (key: string) => string
+) {
+  return value.replace(
+    /(<[^>]*\sdata-i18n=(["'])(.*?)\2[^>]*>)([\s\S]*?)(<\/[^>]+>)/g,
+    (_match, openTag: string, _quote: string, key: string, _content, closeTag: string) =>
+      `${openTag}${translate(key)}${closeTag}`
+  )
+}
+
+function ContactAboutState() {
   const { t } = useTranslation()
-  const currentYear = new Date().getFullYear()
 
   return (
-    <div className='flex min-h-[60vh] items-center justify-center p-8'>
-      <div className='max-w-2xl space-y-6 text-center'>
-        <div className='flex justify-center'>
-          <Construction className='text-muted-foreground h-24 w-24' />
-        </div>
+    <div className='flex min-h-[calc(100svh-8rem)] items-center justify-center px-4 py-10'>
+      <section className='border-border/70 bg-card/60 w-full max-w-xl rounded-xl border px-6 py-8 text-center shadow-sm sm:px-10'>
         <div className='space-y-2'>
-          <h2 className='text-2xl font-bold'>{t('No About Content Set')}</h2>
-          <p className='text-muted-foreground'>
-            {t(
-              'The administrator has not configured any about content yet. You can set it in the settings page, supporting HTML or URL.'
-            )}
+          <p className='text-muted-foreground text-sm font-medium'>
+            {t('Customer Support')}
+          </p>
+          <h1 className='text-2xl font-semibold tracking-normal sm:text-3xl'>
+            {t('Contact Us')}
+          </h1>
+          <p className='text-muted-foreground text-sm'>
+            {t('Reach us through the following channels.')}
           </p>
         </div>
-        <div className='space-y-4 text-sm'>
-          <p>
-            {t('New API Project Repository:')}{' '}
-            <a
-              href='https://github.com/QuantumNous/new-api'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('https://github.com/QuantumNous/new-api')}
-            </a>
-          </p>
-          <p className='text-muted-foreground'>
-            <a
-              href='https://github.com/QuantumNous/new-api'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('NewAPI')}
-            </a>{' '}
-            © {currentYear}{' '}
-            <a
-              href='https://github.com/QuantumNous'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('QuantumNous')}
-            </a>{' '}
-            {t('| Based on')}{' '}
-            <a
-              href='https://github.com/songquanpeng/one-api'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('One API')}
-            </a>{' '}
-            © 2023{' '}
-            <a
-              href='https://github.com/songquanpeng'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('JustSong')}
-            </a>
-          </p>
-          <p className='text-muted-foreground'>
-            {t('This project must be used in compliance with the')}{' '}
-            <a
-              href='https://github.com/QuantumNous/new-api/blob/main/LICENSE'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('AGPL v3.0 License')}
-            </a>
-            .
-          </p>
+
+        <div className='mt-8 grid gap-3 text-left'>
+          <div className='border-border/70 bg-background/70 flex items-center gap-3 rounded-lg border px-4 py-3'>
+            <MessageCircle className='text-primary h-5 w-5 shrink-0' />
+            <div>
+              <div className='text-muted-foreground text-xs'>WhatsApp</div>
+              <a
+                href='https://wa.me/xxxx'
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-primary font-medium hover:underline'
+              >
+                xxxx
+              </a>
+            </div>
+          </div>
+          <div className='border-border/70 bg-background/70 flex items-center gap-3 rounded-lg border px-4 py-3'>
+            <Send className='text-primary h-5 w-5 shrink-0' />
+            <div>
+              <div className='text-muted-foreground text-xs'>Telegram</div>
+              <a
+                href='https://t.me/XXX'
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-primary font-medium hover:underline'
+              >
+                XXX
+              </a>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   )
 }
@@ -129,7 +115,10 @@ export function About() {
     queryFn: getAboutContent,
   })
 
-  const rawContent = data?.data?.trim() ?? ''
+  const rawContent = translateAboutHtmlContent(
+    normalizeAboutContent(data?.data ?? ''),
+    t
+  )
   const hasContent = rawContent.length > 0
   const isUrl = hasContent && isValidUrl(rawContent)
   const isHtml = hasContent && !isUrl && isLikelyHtml(rawContent)
@@ -150,7 +139,7 @@ export function About() {
   if (!hasContent) {
     return (
       <PublicLayout>
-        <EmptyAboutState />
+        <ContactAboutState />
       </PublicLayout>
     )
   }

@@ -35,7 +35,13 @@ import {
   Tabs,
   TabPane,
 } from '@douyinfe/semi-ui';
-import { SiAlipay, SiWechat, SiStripe } from 'react-icons/si';
+import {
+  SiAlipay,
+  SiBinance,
+  SiEthereum,
+  SiStripe,
+  SiWechat,
+} from 'react-icons/si';
 import {
   CreditCard,
   Coins,
@@ -51,6 +57,22 @@ import { getCurrencyConfig } from '../../helpers/render';
 import SubscriptionPlansCard from './SubscriptionPlansCard';
 
 const { Text } = Typography;
+
+const TronIcon = ({ size = 18 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    xmlns='http://www.w3.org/2000/svg'
+    aria-hidden='true'
+  >
+    <path d='M3 3.5L21 7.1L11.2 20.5L3 3.5Z' fill='#EF0027' />
+    <path d='M5.2 5.6L10.8 17.2L12.4 9.4L5.2 5.6Z' fill='white' />
+    <path d='M6.4 5.2L13 8.5L18.3 7.5L6.4 5.2Z' fill='white' />
+    <path d='M13.5 9.5L12 16.4L18.1 8.3L13.5 9.5Z' fill='white' />
+  </svg>
+);
 
 const RechargeCard = ({
   t,
@@ -89,6 +111,7 @@ const RechargeCard = ({
   onOpenHistory,
   enableWaffoTopUp,
   enableWaffoPancakeTopUp,
+  enableBishengTopUp,
   subscriptionLoading = false,
   subscriptionPlans = [],
   billingPreference,
@@ -484,11 +507,15 @@ const RechargeCard = ({
                                 payMethod.type.startsWith('waffo:');
                               const isWaffoPancake =
                                 payMethod.type === 'waffo_pancake';
+                              const isBisheng =
+                                typeof payMethod.type === 'string' &&
+                                payMethod.type.startsWith('bisheng_');
                               const disabled =
                                 (!enableOnlineTopUp &&
                                   !isStripe &&
                                   !isWaffo &&
-                                  !isWaffoPancake) ||
+                                  !isWaffoPancake &&
+                                  !isBisheng) ||
                                 (!enableStripeTopUp && isStripe) ||
                                 (!enableWaffoTopUp && isWaffo) ||
                                 (!enableWaffoPancakeTopUp && isWaffoPancake) ||
@@ -515,6 +542,15 @@ const RechargeCard = ({
                                       <SiStripe size={18} color='#635BFF' />
                                     ) : payMethod.type === 'stripe_card' ? (
                                       <CreditCard size={18} color='#635BFF' />
+                                    ) : payMethod.type ===
+                                      'bisheng_trc20_usdt' ? (
+                                      <TronIcon size={18} />
+                                    ) : payMethod.type ===
+                                      'bisheng_bep20_usdt' ? (
+                                      <SiBinance size={18} color='#F0B90B' />
+                                    ) : payMethod.type ===
+                                      'bisheng_erc20_usdt' ? (
+                                      <SiEthereum size={18} color='#627EEA' />
                                     ) : payMethod.icon ? (
                                       <img
                                         src={payMethod.icon}

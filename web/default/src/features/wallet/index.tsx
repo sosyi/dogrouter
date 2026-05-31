@@ -24,6 +24,7 @@ import { useSystemConfig } from '@/hooks/use-system-config'
 import { SectionPageLayout } from '@/components/layout'
 import { AffiliateRewardsCard } from './components/affiliate-rewards-card'
 import { BillingHistoryDialog } from './components/dialogs/billing-history-dialog'
+import { BishengPaymentDialog } from './components/dialogs/bisheng-payment-dialog'
 import { CreemConfirmDialog } from './components/dialogs/creem-confirm-dialog'
 import { PaymentConfirmDialog } from './components/dialogs/payment-confirm-dialog'
 import { TransferDialog } from './components/dialogs/transfer-dialog'
@@ -43,6 +44,7 @@ import {
 import {
   getDefaultPaymentType,
   getMinTopupAmount,
+  isBishengPayment,
   isWaffoPancakePayment,
 } from './lib'
 import type {
@@ -86,10 +88,12 @@ export function Wallet(props: WalletProps) {
   }, [currency?.quotaDisplayType, currency?.usdExchangeRate])
   const {
     amount: paymentAmount,
+    bishengPayment,
     calculating,
     processing,
     calculatePaymentAmount,
     processPayment,
+    setBishengPayment,
   } = usePayment()
   const {
     affiliateLink,
@@ -186,12 +190,16 @@ export function Wallet(props: WalletProps) {
     if (!selectedPaymentMethod) return
 
     const isPancake = isWaffoPancakePayment(selectedPaymentMethod.type)
+    const isBisheng = isBishengPayment(selectedPaymentMethod.type)
     const success = isPancake
       ? await processWaffoPancakePayment(topupAmount)
       : await processPayment(topupAmount, selectedPaymentMethod.type)
 
     if (success) {
       setConfirmDialogOpen(false)
+      if (isBisheng) {
+        return
+      }
       await fetchUser()
     }
   }
@@ -336,6 +344,16 @@ export function Wallet(props: WalletProps) {
         processing={processing || pancakeProcessing}
         discountRate={getDiscountRate()}
         usdExchangeRate={effectiveUsdExchangeRate}
+      />
+
+      <BishengPaymentDialog
+        open={!!bishengPayment}
+        onOpenChange={(open) => {
+          if (!open) {
+            setBishengPayment(null)
+          }
+        }}
+        payment={bishengPayment}
       />
 
       <TransferDialog

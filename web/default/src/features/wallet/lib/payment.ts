@@ -88,6 +88,10 @@ export function isWaffoPancakePayment(paymentType: string): boolean {
   return paymentType === PAYMENT_TYPES.WAFFO_PANCAKE
 }
 
+export function isBishengPayment(paymentType: string): boolean {
+  return paymentType.startsWith('bisheng_')
+}
+
 /**
  * Get default payment type from topup info
  */
@@ -138,6 +142,10 @@ export function getMinTopupAmount(topupInfo: TopupInfo | null): number {
 
   if (topupInfo.enable_waffo_pancake_topup) {
     return topupInfo.waffo_pancake_min_topup || DEFAULT_MIN_TOPUP
+  }
+
+  if (topupInfo.enable_bisheng_topup) {
+    return topupInfo.bisheng_min_topup || DEFAULT_MIN_TOPUP
   }
 
   return DEFAULT_MIN_TOPUP

@@ -29,7 +29,8 @@ import {
   copy,
   getQuotaPerUnit,
 } from '../../helpers';
-import { Modal, Toast } from '@douyinfe/semi-ui';
+import { Button, Modal, Toast } from '@douyinfe/semi-ui';
+import { QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
 import { UserContext } from '../../context/User';
 import { StatusContext } from '../../context/Status';
@@ -75,6 +76,10 @@ const TopUp = () => {
   const [waffoMinTopUp, setWaffoMinTopUp] = useState(1);
   const [enableWaffoPancakeTopUp, setEnableWaffoPancakeTopUp] = useState(false);
   const [waffoPancakeMinTopUp, setWaffoPancakeMinTopUp] = useState(1);
+  const [enableBishengTopUp, setEnableBishengTopUp] = useState(false);
+  const [bishengMinTopUp, setBishengMinTopUp] = useState(1);
+  const [bishengPayment, setBishengPayment] = useState(null);
+  const [bishengOpen, setBishengOpen] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [open, setOpen] = useState(false);
@@ -136,9 +141,65 @@ const TopUp = () => {
     payment === 'stripe' ||
     (typeof payment === 'string' && payment.startsWith('stripe_'));
 
+  const isBishengPayment = (payment) =>
+    typeof payment === 'string' && payment.startsWith('bisheng_');
+
+  const getBishengNetworkName = (payment) => {
+    const coinType = payment?.coin_type || '';
+    if (coinType.includes('BEP20')) return 'BEP20-USDT';
+    if (coinType.includes('ERC20')) return 'ERC20-USDT';
+    return 'TRC20-USDT';
+  };
+
+  const renderBishengNetworkLogo = (payment, size = 22) => {
+    const network = getBishengNetworkName(payment);
+    if (network === 'BEP20-USDT') {
+      return (
+        <span
+          className='inline-flex items-center justify-center rounded-full bg-[#F0B90B] text-white font-bold'
+          style={{ width: size, height: size, fontSize: size * 0.45 }}
+        >
+          B
+        </span>
+      );
+    }
+    if (network === 'ERC20-USDT') {
+      return (
+        <svg width={size} height={size} viewBox='0 0 24 24' aria-hidden='true'>
+          <path d='M12 2L5 12.2L12 16.3L19 12.2L12 2Z' fill='#627EEA' />
+          <path d='M12 22L5 13.6L12 17.7L19 13.6L12 22Z' fill='#627EEA' />
+        </svg>
+      );
+    }
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox='0 0 24 24'
+        fill='none'
+        xmlns='http://www.w3.org/2000/svg'
+        aria-hidden='true'
+      >
+        <path d='M3 3.5L21 7.1L11.2 20.5L3 3.5Z' fill='#EF0027' />
+        <path d='M5.2 5.6L10.8 17.2L12.4 9.4L5.2 5.6Z' fill='white' />
+        <path d='M6.4 5.2L13 8.5L18.3 7.5L6.4 5.2Z' fill='white' />
+        <path d='M13.5 9.5L12 16.4L18.1 8.3L13.5 9.5Z' fill='white' />
+      </svg>
+    );
+  };
+
+  const formatBishengLocalExpireTime = () => {
+    const expireAt = new Date(Date.now() + 20 * 60 * 1000);
+    const pad = (value) => String(value).padStart(2, '0');
+    return `${expireAt.getFullYear()}-${pad(expireAt.getMonth() + 1)}-${pad(expireAt.getDate())} ${pad(expireAt.getHours())}:${pad(expireAt.getMinutes())}:${pad(expireAt.getSeconds())}`;
+  };
+
   const requestAmountByPayment = async (payment, value) => {
     if (isStripePayment(payment)) {
       return getStripeAmount(value);
+    }
+    if (isBishengPayment(payment)) {
+      return getBishengAmount(value);
     }
     if (payment === 'waffo_pancake') {
       return getWaffoPancakeAmount(value);
@@ -209,6 +270,11 @@ const TopUp = () => {
         showError(t('管理员未开启 Waffo 充值！'));
         return;
       }
+    } else if (isBishengPayment(payment)) {
+      if (!enableBishengTopUp) {
+        showError(t('管理员未开启 USDT 充值！'));
+        return;
+      }
     } else {
       if (!enableOnlineTopUp) {
         showError(t('管理员未开启在线充值！'));
@@ -251,6 +317,25 @@ const TopUp = () => {
       setConfirmLoading(true);
       try {
         await waffoTopUp(Number.isFinite(payMethodIndex) ? payMethodIndex : 0);
+      } finally {
+        setOpen(false);
+        setConfirmLoading(false);
+      }
+      return;
+    }
+
+    if (isBishengPayment(payWay)) {
+      if (amount === 0) {
+        await getBishengAmount();
+      }
+      const minTopUpValue = Number(bishengMinTopUp || 1);
+      if (topUpCount < minTopUpValue) {
+        showError(t('充值数量不能小于') + bishengMinTopUp);
+        return;
+      }
+      setConfirmLoading(true);
+      try {
+        await bishengTopUp();
       } finally {
         setOpen(false);
         setConfirmLoading(false);
@@ -476,6 +561,63 @@ const TopUp = () => {
     }
   };
 
+  const bishengTopUp = async () => {
+    setPaymentLoading(true);
+    try {
+      const res = await API.post('/api/user/bisheng/pay', {
+        amount: parseInt(topUpCount),
+        payment_method: payWay,
+      });
+      if (res !== undefined) {
+        const { message, data } = res.data;
+        if (message === 'success' && data?.address) {
+          setBishengPayment({
+            ...data,
+            client_expire_time: formatBishengLocalExpireTime(),
+          });
+          setBishengOpen(true);
+        } else {
+          const errorMsg =
+            typeof data === 'string' ? data : message || t('支付请求失败');
+          showError(errorMsg);
+        }
+      } else {
+        showError(res);
+      }
+    } catch (e) {
+      showError(t('支付请求失败'));
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const getBishengAmount = async (value) => {
+    if (value === undefined) {
+      value = topUpCount;
+    }
+    setAmountLoading(true);
+    try {
+      const res = await API.post('/api/user/bisheng/amount', {
+        amount: parseInt(value),
+      });
+      if (res !== undefined) {
+        const { message, data } = res.data;
+        if (message === 'success') {
+          setAmount(parseFloat(data));
+        } else {
+          setAmount(0);
+          Toast.error({ content: '错误：' + data, id: 'getAmount' });
+        }
+      } else {
+        showError(res);
+      }
+    } catch (err) {
+      // amount fetch failed silently
+    } finally {
+      setAmountLoading(false);
+    }
+  };
+
   const getWaffoPancakeAmount = async (value) => {
     if (value === undefined) {
       value = topUpCount;
@@ -649,6 +791,7 @@ const TopUp = () => {
           const enableWaffoTopUp = data.enable_waffo_topup || false;
           const enableWaffoPancakeTopUp =
             data.enable_waffo_pancake_topup || false;
+          const enableBishengTopUp = data.enable_bisheng_topup || false;
           const minTopUpValue = enableOnlineTopUp
             ? data.min_topup
             : enableStripeTopUp
@@ -657,7 +800,9 @@ const TopUp = () => {
                 ? data.waffo_min_topup
                 : enableWaffoPancakeTopUp
                   ? data.waffo_pancake_min_topup
-                : 1;
+                  : enableBishengTopUp
+                    ? data.bisheng_min_topup
+                    : 1;
           setEnableOnlineTopUp(enableOnlineTopUp);
           setEnableStripeTopUp(enableStripeTopUp);
           setEnableCreemTopUp(enableCreemTopUp);
@@ -666,6 +811,8 @@ const TopUp = () => {
           setWaffoMinTopUp(data.waffo_min_topup || 1);
           setEnableWaffoPancakeTopUp(enableWaffoPancakeTopUp);
           setWaffoPancakeMinTopUp(data.waffo_pancake_min_topup || 1);
+          setEnableBishengTopUp(enableBishengTopUp);
+          setBishengMinTopUp(data.bisheng_min_topup || 1);
           setMinTopUp(minTopUpValue);
           setTopUpCount(minTopUpValue);
           setTopUpLink(data.topup_link || '');
@@ -915,6 +1062,89 @@ const TopUp = () => {
         discountRate={topupInfo?.discount?.[topUpCount] || 1.0}
       />
 
+      <Modal
+        title={t('USDT 充值')}
+        visible={bishengOpen}
+        onCancel={() => setBishengOpen(false)}
+        footer={null}
+        centered
+        width={520}
+      >
+        {bishengPayment && (
+          <div className='flex flex-col gap-4'>
+            <div className='rounded-lg border border-orange-200 bg-orange-50 px-4 py-3'>
+              <div className='flex items-center gap-2 text-sm font-semibold text-orange-700'>
+                {renderBishengNetworkLogo(bishengPayment)}
+                <span>
+                  {t('请使用')} {getBishengNetworkName(bishengPayment)}{' '}
+                  {t('付款')}
+                </span>
+              </div>
+              <div className='mt-1 text-sm text-orange-700'>
+                {t('付款期限')}：
+                <span className='font-semibold text-red-600'>
+                  {t('20分钟内完成付款')}
+                </span>
+                {bishengPayment.client_expire_time
+                  ? `，${t('过期时间')}：${bishengPayment.client_expire_time}`
+                  : ''}
+              </div>
+            </div>
+
+            <div className='flex flex-col items-center gap-3'>
+              <div className='rounded-lg border border-gray-200 bg-white p-3'>
+                <QRCodeSVG value={bishengPayment.address} size={220} />
+              </div>
+              <div className='text-center'>
+                <div className='text-sm text-gray-500'>{t('付款金额')}</div>
+                <div className='text-2xl font-semibold'>
+                  {bishengPayment.amount} USDT
+                </div>
+              </div>
+            </div>
+
+            <div className='w-full'>
+              <div className='text-sm text-gray-500 mb-1'>{t('收款地址')}</div>
+              <div className='break-all rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm'>
+                {bishengPayment.address}
+              </div>
+            </div>
+
+            <div className='rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700'>
+              <div className='font-semibold'>{t('重要提醒')}</div>
+              <ul className='mt-2 list-disc pl-5 space-y-1'>
+                <li>
+                  {t('只能转入')} {getBishengNetworkName(bishengPayment)}{' '}
+                  {t('资产，其他链或其他资产不到账。')}
+                </li>
+                <li>
+                  {t(
+                    '请按本订单显示的金额和地址付款，不要保存或重复使用该地址。'
+                  )}
+                </li>
+                <li>
+                  {t(
+                    '转账后 1-2 分钟到账，支持交易所和 Web3 钱包。'
+                  )}
+                </li>
+              </ul>
+            </div>
+
+            <Button
+              theme='solid'
+              type='primary'
+              block
+              onClick={async () => {
+                await copy(bishengPayment.address);
+                showSuccess(t('地址已复制到剪切板'));
+              }}
+            >
+              {t('复制地址')}
+            </Button>
+          </div>
+        )}
+      </Modal>
+
       {/* 充值账单模态框 */}
       <TopupHistoryModal
         visible={openHistory}
@@ -961,6 +1191,7 @@ const TopUp = () => {
           creemPreTopUp={creemPreTopUp}
           enableWaffoTopUp={enableWaffoTopUp}
           enableWaffoPancakeTopUp={enableWaffoPancakeTopUp}
+          enableBishengTopUp={enableBishengTopUp}
           presetAmounts={presetAmounts}
           selectedPreset={selectedPreset}
           selectPresetAmount={selectPresetAmount}

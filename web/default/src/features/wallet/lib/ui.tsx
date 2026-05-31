@@ -18,7 +18,13 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { type ReactNode } from 'react'
 import { CreditCard, Landmark } from 'lucide-react'
-import { SiAlipay, SiWechat, SiStripe } from 'react-icons/si'
+import {
+  SiAlipay,
+  SiBinance,
+  SiEthereum,
+  SiStripe,
+  SiWechat,
+} from 'react-icons/si'
 import { PAYMENT_TYPES, PAYMENT_ICON_COLORS } from '../constants'
 
 // ============================================================================
@@ -27,6 +33,23 @@ import { PAYMENT_TYPES, PAYMENT_ICON_COLORS } from '../constants'
 
 const HAS_LOCATION =
   typeof globalThis !== 'undefined' && 'location' in globalThis
+
+function TronIcon({ className }: { className?: string }): ReactNode {
+  return (
+    <svg
+      className={className}
+      viewBox='0 0 24 24'
+      fill='none'
+      xmlns='http://www.w3.org/2000/svg'
+      aria-hidden='true'
+    >
+      <path d='M3 3.5L21 7.1L11.2 20.5L3 3.5Z' fill='#EF0027' />
+      <path d='M5.2 5.6L10.8 17.2L12.4 9.4L5.2 5.6Z' fill='white' />
+      <path d='M6.4 5.2L13 8.5L18.3 7.5L6.4 5.2Z' fill='white' />
+      <path d='M13.5 9.5L12 16.4L18.1 8.3L13.5 9.5Z' fill='white' />
+    </svg>
+  )
+}
 
 /**
  * Resolves a backend-provided image URL to http(s) only. Rejects javascript:,
@@ -127,6 +150,12 @@ export function getPaymentIcon(
           style={{ color: PAYMENT_ICON_COLORS[PAYMENT_TYPES.STRIPE_CARD] }}
         />
       )
+    case 'bisheng_trc20_usdt':
+      return <TronIcon className={className} />
+    case 'bisheng_bep20_usdt':
+      return <SiBinance className={className} style={{ color: '#F0B90B' }} />
+    case 'bisheng_erc20_usdt':
+      return <SiEthereum className={className} style={{ color: '#627EEA' }} />
     case PAYMENT_TYPES.CREEM:
       return (
         <Landmark

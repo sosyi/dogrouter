@@ -121,6 +121,15 @@ const paymentSchema = z.object({
       })
     }
   }),
+  BishengEnabled: z.boolean(),
+  BishengGateway: z.string().refine((value) => {
+    const trimmed = value.trim()
+    if (!trimmed) return true
+    return /^https?:\/\//.test(trimmed)
+  }, 'Provide a valid URL starting with http:// or https://'),
+  BishengMerchant: z.string(),
+  BishengMd5Key: z.string(),
+  BishengMinTopUp: z.coerce.number().min(1),
 })
 
 type PaymentFormValues = z.infer<typeof paymentSchema>
@@ -415,6 +424,47 @@ export function PaymentSettingsSection({
     }
   }
 
+  const saveBishengSettings = async () => {
+    const values = form.getValues()
+    const sanitized = {
+      BishengEnabled: values.BishengEnabled as boolean,
+      BishengGateway: removeTrailingSlash(values.BishengGateway),
+      BishengMerchant: values.BishengMerchant.trim(),
+      BishengMd5Key: values.BishengMd5Key.trim(),
+      BishengMinTopUp: values.BishengMinTopUp as number,
+    }
+
+    const initial = {
+      BishengEnabled: initialRef.current.BishengEnabled,
+      BishengGateway: removeTrailingSlash(initialRef.current.BishengGateway),
+      BishengMerchant: initialRef.current.BishengMerchant.trim(),
+      BishengMd5Key: initialRef.current.BishengMd5Key.trim(),
+      BishengMinTopUp: initialRef.current.BishengMinTopUp,
+    }
+
+    const updates: Array<{ key: string; value: string | number | boolean }> = []
+
+    if (sanitized.BishengEnabled !== initial.BishengEnabled) {
+      updates.push({ key: 'BishengEnabled', value: sanitized.BishengEnabled })
+    }
+    if (sanitized.BishengGateway !== initial.BishengGateway) {
+      updates.push({ key: 'BishengGateway', value: sanitized.BishengGateway })
+    }
+    if (sanitized.BishengMerchant !== initial.BishengMerchant) {
+      updates.push({ key: 'BishengMerchant', value: sanitized.BishengMerchant })
+    }
+    if (sanitized.BishengMd5Key && sanitized.BishengMd5Key !== initial.BishengMd5Key) {
+      updates.push({ key: 'BishengMd5Key', value: sanitized.BishengMd5Key })
+    }
+    if (sanitized.BishengMinTopUp !== initial.BishengMinTopUp) {
+      updates.push({ key: 'BishengMinTopUp', value: sanitized.BishengMinTopUp })
+    }
+
+    for (const update of updates) {
+      await updateOption.mutateAsync(update)
+    }
+  }
+
   const onSubmit = async (values: PaymentFormValues) => {
     const sanitized = {
       PayAddress: removeTrailingSlash(values.PayAddress),
@@ -432,6 +482,11 @@ export function PaymentSettingsSection({
       StripeUnitPrice: values.StripeUnitPrice,
       StripeMinTopUp: values.StripeMinTopUp,
       StripePromotionCodesEnabled: values.StripePromotionCodesEnabled,
+      BishengEnabled: values.BishengEnabled,
+      BishengGateway: removeTrailingSlash(values.BishengGateway),
+      BishengMerchant: values.BishengMerchant.trim(),
+      BishengMd5Key: values.BishengMd5Key.trim(),
+      BishengMinTopUp: values.BishengMinTopUp,
     }
 
     const initial = {
@@ -453,6 +508,11 @@ export function PaymentSettingsSection({
       StripeMinTopUp: initialRef.current.StripeMinTopUp,
       StripePromotionCodesEnabled:
         initialRef.current.StripePromotionCodesEnabled,
+      BishengEnabled: initialRef.current.BishengEnabled,
+      BishengGateway: removeTrailingSlash(initialRef.current.BishengGateway),
+      BishengMerchant: initialRef.current.BishengMerchant.trim(),
+      BishengMd5Key: initialRef.current.BishengMd5Key.trim(),
+      BishengMinTopUp: initialRef.current.BishengMinTopUp,
     }
 
     const updates: Array<{ key: string; value: string | number | boolean }> = []
@@ -548,6 +608,25 @@ export function PaymentSettingsSection({
         key: 'StripePromotionCodesEnabled',
         value: sanitized.StripePromotionCodesEnabled,
       })
+    }
+
+    if (sanitized.BishengEnabled !== initial.BishengEnabled) {
+      updates.push({ key: 'BishengEnabled', value: sanitized.BishengEnabled })
+    }
+    if (sanitized.BishengGateway !== initial.BishengGateway) {
+      updates.push({ key: 'BishengGateway', value: sanitized.BishengGateway })
+    }
+    if (sanitized.BishengMerchant !== initial.BishengMerchant) {
+      updates.push({ key: 'BishengMerchant', value: sanitized.BishengMerchant })
+    }
+    if (
+      sanitized.BishengMd5Key &&
+      sanitized.BishengMd5Key !== initial.BishengMd5Key
+    ) {
+      updates.push({ key: 'BishengMd5Key', value: sanitized.BishengMd5Key })
+    }
+    if (sanitized.BishengMinTopUp !== initial.BishengMinTopUp) {
+      updates.push({ key: 'BishengMinTopUp', value: sanitized.BishengMinTopUp })
     }
 
     for (const update of updates) {
@@ -1293,6 +1372,138 @@ export function PaymentSettingsSection({
               {updateOption.isPending
                 ? t('Saving...')
                 : t('Save Creem settings')}
+            </Button>
+          </div>
+
+          <Separator />
+
+          <div className='space-y-4'>
+            <div>
+              <h3 className='text-lg font-medium'>{t('Bisheng USDT Gateway')}</h3>
+              <p className='text-muted-foreground text-sm'>
+                {t('Interface mode: upstream returns an address, and the wallet page shows QR code plus address. Signature type is MD5.')}
+              </p>
+            </div>
+
+            <FormField
+              control={form.control}
+              name='BishengEnabled'
+              render={({ field }) => (
+                <FormItem className='flex flex-row items-center justify-between rounded-lg border p-4'>
+                  <div className='space-y-0.5'>
+                    <FormLabel className='text-base'>
+                      {t('Enable Bisheng USDT')}
+                    </FormLabel>
+                    <FormDescription>
+                      {t('Adds TRC20-USDT, BEP20-USDT and ERC20-USDT recharge buttons.')}
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <div className='grid gap-6 md:grid-cols-3'>
+              <FormField
+                control={form.control}
+                name='BishengGateway'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Create Order API URL')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder='https://gateway.bishengusdt.com/api/coin/payOrder/create'
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='BishengMerchant'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Merchant ID')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder='10070'
+                        autoComplete='off'
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='BishengMinTopUp'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Minimum top-up (USD)')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        step='1'
+                        min={1}
+                        value={(field.value ?? 1) as number}
+                        onChange={(event) =>
+                          field.onChange(event.target.valueAsNumber)
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name='BishengMd5Key'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('MD5 Secret Key')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='password'
+                      placeholder={t('Enter new key to update')}
+                      autoComplete='new-password'
+                      {...field}
+                      onChange={(event) => field.onChange(event.target.value)}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t('Leave blank unless rotating the secret')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button
+              type='button'
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                saveBishengSettings()
+              }}
+              disabled={updateOption.isPending}
+            >
+              {updateOption.isPending
+                ? t('Saving...')
+                : t('Save Bisheng USDT settings')}
             </Button>
           </div>
 

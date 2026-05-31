@@ -25,6 +25,7 @@ import SettingsPaymentGatewayStripe from '../../pages/Setting/Payment/SettingsPa
 import SettingsPaymentGatewayCreem from '../../pages/Setting/Payment/SettingsPaymentGatewayCreem';
 import SettingsPaymentGatewayWaffo from '../../pages/Setting/Payment/SettingsPaymentGatewayWaffo';
 import SettingsPaymentGatewayWaffoPancake from '../../pages/Setting/Payment/SettingsPaymentGatewayWaffoPancake';
+import SettingsPaymentGatewayBisheng from '../../pages/Setting/Payment/SettingsPaymentGatewayBisheng';
 import { API, showError, toBoolean } from '../../helpers';
 import { useTranslation } from 'react-i18next';
 
@@ -60,6 +61,12 @@ const PaymentSetting = () => {
     WaffoPancakeCurrency: 'USD',
     WaffoPancakeUnitPrice: 1.0,
     WaffoPancakeMinTopUp: 1,
+
+    BishengEnabled: false,
+    BishengGateway: 'https://gateway.bishengusdt.com/api/coin/payOrder/create',
+    BishengMerchant: '',
+    BishengMd5Key: '',
+    BishengMinTopUp: 1,
   });
 
   let [loading, setLoading] = useState(false);
@@ -110,6 +117,7 @@ const PaymentSetting = () => {
           case 'StripeMinTopUp':
           case 'WaffoPancakeUnitPrice':
           case 'WaffoPancakeMinTopUp':
+          case 'BishengMinTopUp':
             newInputs[item.key] = parseFloat(item.value);
             break;
           case 'WaffoPancakeMerchantID':
@@ -118,6 +126,9 @@ const PaymentSetting = () => {
           case 'WaffoPancakeProductID':
           case 'WaffoPancakeReturnURL':
           case 'WaffoPancakeCurrency':
+          case 'BishengGateway':
+          case 'BishengMerchant':
+          case 'BishengMd5Key':
             newInputs[item.key] = item.value;
             break;
           case 'WaffoPancakeSandbox':
@@ -193,6 +204,13 @@ const PaymentSetting = () => {
             </Tabs.TabPane>
             <Tabs.TabPane tab={t('Waffo 设置')} itemKey='waffo'>
               <SettingsPaymentGatewayWaffo
+                options={inputs}
+                refresh={onRefresh}
+                hideSectionTitle
+              />
+            </Tabs.TabPane>
+            <Tabs.TabPane tab={t('Bisheng USDT 设置')} itemKey='bisheng'>
+              <SettingsPaymentGatewayBisheng
                 options={inputs}
                 refresh={onRefresh}
                 hideSectionTitle

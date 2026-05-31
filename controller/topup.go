@@ -25,6 +25,13 @@ import (
 func GetTopUpInfo(c *gin.Context) {
 	// 获取支付方式
 	payMethods := operation_setting.PayMethods
+	enableBisheng := isBishengTopUpEnabled()
+
+	if !enableBisheng {
+		payMethods = lo.Filter(payMethods, func(method map[string]string, _ int) bool {
+			return !strings.HasPrefix(method["type"], "bisheng_")
+		})
+	}
 
 	// 如果启用了 Stripe 支付，注入 微信/支付宝/银行卡 三条 pay_methods
 	// 这样前端「选择支付方式」直接平铺三颗 Stripe-backed 按钮，每条对应
@@ -106,12 +113,52 @@ func GetTopUpInfo(c *gin.Context) {
 		}
 	}
 
+	bishengMinTopUp := setting.BishengMinTopUp
+	if bishengMinTopUp <= 0 {
+		bishengMinTopUp = 1
+	}
+	if enableBisheng {
+		bishengMethods := []map[string]string{
+			{
+				"name":      "TRC20-USDT",
+				"type":      model.PaymentMethodBishengTRC20,
+				"color":     "rgba(var(--semi-green-5), 1)",
+				"min_topup": strconv.Itoa(bishengMinTopUp),
+			},
+			{
+				"name":      "BEP20-USDT",
+				"type":      model.PaymentMethodBishengBEP20,
+				"color":     "rgba(var(--semi-yellow-5), 1)",
+				"min_topup": strconv.Itoa(bishengMinTopUp),
+			},
+			{
+				"name":      "ERC20-USDT",
+				"type":      model.PaymentMethodBishengERC20,
+				"color":     "rgba(var(--semi-blue-5), 1)",
+				"min_topup": strconv.Itoa(bishengMinTopUp),
+			},
+		}
+		for _, method := range bishengMethods {
+			exists := false
+			for _, configured := range payMethods {
+				if configured["type"] == method["type"] {
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				payMethods = append(payMethods, method)
+			}
+		}
+	}
+
 	data := gin.H{
 		"enable_online_topup":        isEpayTopUpEnabled(),
 		"enable_stripe_topup":        isStripeTopUpEnabled(),
 		"enable_creem_topup":         isCreemTopUpEnabled(),
 		"enable_waffo_topup":         enableWaffo,
 		"enable_waffo_pancake_topup": enableWaffoPancake,
+		"enable_bisheng_topup":       enableBisheng,
 		"waffo_pay_methods": func() interface{} {
 			if enableWaffo {
 				return setting.GetWaffoPayMethods()
@@ -124,6 +171,7 @@ func GetTopUpInfo(c *gin.Context) {
 		"stripe_min_topup":        setting.StripeMinTopUp,
 		"waffo_min_topup":         setting.WaffoMinTopUp,
 		"waffo_pancake_min_topup": setting.WaffoPancakeMinTopUp,
+		"bisheng_min_topup":       setting.BishengMinTopUp,
 		"amount_options":          operation_setting.GetPaymentSetting().AmountOptions,
 		"discount":                operation_setting.GetPaymentSetting().AmountDiscount,
 		"topup_link":              common.TopUpLink,
